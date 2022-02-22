@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,height=device-height">
+  <title>Figure</title>
+  <style>::-webkit-scrollbar{display:none;}html,body{overflow:hidden;height:100%;margin:0;}</style>
+</head>
+<body>
+<button id='btn-save-image'>Save Image</button>
+<button id='btn-save-data'>Data</button>
+<button id='btn-save-label'>Labels</button>
+<div id="mountNode"></div>
+<script>/*Fixing iframe window.innerHeight 0 issue in Safari*/document.body.clientHeight;</script>
+<script src="https://gw.alipayobjects.com/os/antv/pkg/_antv.g2-3.2.7/dist/g2.min.js"></script>
+<script src="https://gw.alipayobjects.com/os/antv/pkg/_antv.data-set-0.8.9/dist/data-set.min.js"></script>
+<script src="https://gw.alipayobjects.com/os/antv/assets/lib/jquery-3.2.1.min.js"></script>
+
+<script>
+function getData(data) {
+  window.data = data;
+}
+</script>
+<script src="./taxonomy_tree.json?callback=getData"></script>
+
+<script>
+$(document).ready(function() {
+  const levels = [
+    'superkingdom', 'phylum', 'class', 
+    'order', 'family', 'genus', 'species'
+  ];
+  
+  const renderer = 'svg'; // 'canvas';
+  
+  const height = Math.min(window.innerHeight, window.innerWidth);
+  const padding = [60, 60, 60, 60];
+  
+  const leavesDepth = 5;
+  const eps = 1e-6;
+  const fontSize = 8;
+  const fontColor = 'black';
+  const useLabel = true;
+  
+  const colorBreaks = [-4, -3, -2, -1, 1, 2, 3, 4];
+  const colorValues = [
+    '#0064c2', '#339dff', '#66baff', '#cceaff', '#dcdcdc',
+    '#ffccd3', '#ff6676', '#ff3355', '#c20017'
+  ];
+  
+  const pvalueThreshold = 0.05;
+  const fcThresholds = [-1, 1];
+  const nodeColorValues = ['darkblue', 'black', 'darkred'];
+  
+  const nodeSizeBreaks = [0.01, 0.05];
+  const nodeSizeValues = [5, 4, 1];
+  
+  
+  function stepValue(value, breaks, labels) {
+    for (var i = 0; i < breaks.length; i++) {
+      if (breaks[i] > value) {
+        return labels[i]
+      }
+    }
+    return labels[breaks.length]
+  }
+  
+  var dv = new DataSet.View().source(data, {
+    type: 'hierarchy'
+  });
+  dv.transform({
+    type: 'hierarchy.tree'
+  });
+
+  var links = dv.getAllLinks().map(function (link) {
+    return {
+      x: [link.source.x, link.target.x],
+      y: [link.source.y, link.target.y],
+      source: link.source,
+      target: link.target
+    };
+  });
+
+  var nodes = dv.getAllNodes();
+
+  function calculatePolygonX(nodes) {
+    var leavesCount = nodes.filter(function (node) { 
+      return node.depth === leavesDepth; 
+    }).length;
+
+    function calculateXRange(node) {
+      if (node.children && node.children.length) {
+        var childrenRange = node.children.map(calculateXRange);
+        node.xRange = [
+          Math.min.apply(null, childrenRange.map(x => x[0])),
+          Math.max.apply(null, childrenRange.map(x => x[1]))
+        ]
+      }
+      else {
+        node.xRange = [
+          node.x - 0.4 / leavesCount,
+          node.x + 0.4 / leavesCount
+        ]
+      }
+      return node.xRange;
+    }
+    calculateXRange(nodes[0]);
+  }
+
+  calculatePolygonX(nodes);
+
+  function calculatePolygonY(nodes) {
+    var polygonY = [];
+    nodes.forEach(function (node) {
+      polygonY[node.depth] = node.y;
+    })
+    polygonY = polygonY.map(function (y, i, items) {
+      var y1 = y, y2 = y;
+      if (i === 0) {
+        y1 = 0;
+      }
+      else {
+        y1 = (y + items[i - 1]) / 2
+      }
+      if (i === items.length - 1) {
+        y2 = y * 2 - y1;
+      }
+      else {
+        y2 = (y + items[i + 1]) / 2
+      }
+      if (y2 > 1) {
+        y2 = 1
+      };
+      return [y1, y2];
+    });
+
+    nodes.forEach(function (node) {
+      node.yRange = [
+        polygonY[node.depth][0], 
+        y2 = polygonY[node.depth][1]
+      ];
+    });
+  }
+
+  calculatePolygonY(nodes);
+
+  nodes = nodes.map(function (node) {
+    var group1 = node.data.data.mean1;
+    var group2 = node.data.data.mean2;
+    var mean = (group1 + group2) / 2;
+    var log2fc = Math.log2((group2 + eps) / (group1 + eps));
+    var pvalue = node.data.data.pvalue;
+    return {
+      name: typeof node.data.name === 'string' ? node.data.name : JSON.stringify(node.data.name),
+      group1: group1,
+      group2: group2,
+      mean: mean,
+      log2fc: log2fc,
+      pvalue: pvalue,
+      depth: node.depth,
+      centerX: node.x,
+      centerY: node.y,
+      pointX: [node.xRange[0], node.xRange[0], node.xRange[1], node.xRange[1]],
+      pointY: [node.yRange[0], node.yRange[1], node.yRange[1], node.yRange[0]],
+      label: 
+        node.data.name !== '' && node.data.name !== 'NA' &&
+        node.data.name !== '-' &&
+        (!node.children ||
+          !node.children.length ||
+          !node.children.filter(function (c) { return c.data.name !== '' && c.data.name !== 'NA'; }).length)
+    };
+  });
+  
+  if (useLabel) {
+    function labelNodes(nodes) {
+      var labels = {};
+      var labelCount = 0;
+      nodes.map(function (node) {
+        if (node.label) {
+          labelCount += 1;
+          node.label = labelCount;
+          labels[node.label] = node.name;
+        }
+      })
+      return labels;
+    }
+  
+    var labels = labelNodes(nodes);
+  }
+  
+  var chart = new G2.Chart({
+    container: 'mountNode',
+    forceFit: true,
+    height: height,
+    padding: padding,
+    renderer: renderer
+  });
+  chart.coord('polar');
+  chart.axis(false); 
+  
+  chart.legend('pvalue', false);
+  chart.legend('log2fc', false);
+    
+  /*
+  chart.legend('log2fc', {
+    slidable: false,
+    position: 'bottom-center',
+    offsetY: 60,
+    height: 8,
+    width: 140
+  });
+  */
+  
+  
+  chart.tooltip({
+    showTitle: false
+  });
+  
+  var polygonView = chart.view();
+  polygonView.source(nodes.filter(function (node) {
+    return node.name !== '' && node.name !== 'NA';
+  }), {
+    name: { alias: 'Taxon' },
+    log2fc: { alias: 'log2 FC' },
+    group1: { alias: 'Group 1' },
+    group2: { alias: 'Group 2' }
+  });
+  polygonView.polygon()
+    .position('pointX*pointY')
+    .opacity(0.75)
+    .color('log2fc*pvalue', function (log2fc, pvalue) { 
+      return stepValue(log2fc, colorBreaks, colorValues)
+    })
+    .active(false)
+    .style({
+      stroke: '#FFF',
+      lineWidth: 1
+    })
+    .tooltip('name*group1*group2*log2 FC');
+
+  var edgeView = chart.view();
+  edgeView.source(links.filter(function (link) { 
+    return link.target.data.name !== '' && link.target.data.name !== 'NA'; 
+  }));
+  edgeView.edge()
+    .position('x*y')
+    .shape('smooth')
+    .opacity(0.5)
+    .color('grey')
+    .tooltip(false);
+  
+  var nodeView = chart.view();
+  nodeView.source(nodes.filter(function (node) {
+    return node.name !== '' && node.name !== 'NA';
+  }), {
+    name: { alias: 'Taxon' },
+    group1: { alias: 'Group 1' },
+    group2: { alias: 'Group 2' },
+    pvalue: { alias: 'P-value' }
+  });
+  nodeView.point()
+    .position('centerX*centerY')
+    .color('pvalue*log2fc', function(pvalue, log2fc) {
+      if (pvalue < pvalueThreshold) {
+        return stepValue(log2fc, fcThresholds, nodeColorValues)
+      }
+      else {
+        return stepValue(0, fcThresholds, nodeColorValues)
+      }
+    })    
+    .opacity(0.5)    
+    .size('pvalue', function(pvalue) { 
+      return stepValue(pvalue, nodeSizeBreaks, nodeSizeValues)
+    })    
+    .label('name*label', function (name, label) {
+      if (!label) {
+        return null;
+      }
+      else if (useLabel) {
+        return label;
+      }
+      else {
+        return name;
+      }
+    }, {
+      offset: 25,
+      labelEmit: true,
+      textStyle: function textStyle(text, item) {
+        var textAlign = item.textAlign;
+        if (item.point.hasChildren) {
+          textAlign = textAlign === 'left' ? 'right' : 'left';
+        }
+        return {
+          fill: fontColor,
+          fontSize: fontSize,
+          textAlign: textAlign,
+          textBaseline: 'middle'
+        };
+      }
+    })
+    .tooltip('name*group1*group2*pvalue');
+  
+  chart.render();
+  
+  if (renderer == 'svg') {
+    var center = $('#canvas_1 > g:nth-child(4) > g:nth-child(3) > path')
+        .attr('d').split(' ').slice(1, 3).map(parseFloat)
+    
+    function rotateText(){
+      var centerX = center[0];
+      var centerY = center[1];
+      
+      function rotation(x, y, centerX, centerY) {
+        var angle = Math.atan2(y - centerY, x - centerX) * 180 / (Math.PI);
+        if (x < centerX) {
+          angle += 180;
+        }
+        return angle;
+      }
+
+      $('#canvas_1 g text').each(function (i, t) {
+        var x = parseFloat($(t).attr('x'));
+        var y = parseFloat($(t).attr('y'));
+        var angle = rotation(x, y, centerX, centerY);
+        $(t).attr('transform', 'rotate(' + angle + ',' + x + ',' + y + ')');
+      });
+    }
+  
+    setTimeout(rotateText, 1000);
+  }
+
+  $('#btn-save-image').click(function() {
+      chart.downloadImage();
+  });
+  
+  function downloadText(text, filename) {
+    var element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+    element.setAttribute('download', filename);
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  }
+  
+  $('#btn-save-data').click(function() {
+      var s = [[
+          'label',
+          'level',
+          'name',
+          'group1',
+          'group2',
+          'fc',
+          'pvalue'
+      ].join(',')].concat(nodes.filter(function(node) {
+        return node.name !== '' && node.name !== 'NA';
+      }).map(function(node) {
+        return [
+          node.label,
+          node.depth == 0 ? 'root': levels[node.depth - 1],
+          node.name,
+          node.group1,
+          node.group2,
+          node.group2 / node.group1,
+          node.pvalue
+        ].join(',');
+      })).join('\r\n');
+      
+      downloadText(s, 'data.csv');
+  });
+  
+  if (useLabel) {    
+    $('#btn-save-label').show();
+    $('#btn-save-label').click(function() {
+      var s = Object.keys(labels).map(function(key) {
+          return key + ',' + labels[key];
+      }).join('\r\n');
+      
+      downloadText(s, 'label.csv');
+    });
+  }
+  else {
+    $('#btn-save-label').hide();
+  }
+  
+  });
+</script>
+</body>
+
+</html>
