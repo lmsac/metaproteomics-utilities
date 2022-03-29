@@ -88,16 +88,16 @@ taxonomy_list = c(
   'Phyllobacteriaceae'
 )
 
-taxonomy_list = c(
-  'Chloroflexi',
-  'Anaerolineae',
-  'Barnesiellaceae',
-  'Prolixibacteraceae',
-  'Eggerthellaceae',
-  'Rikenellaceae',
-  'Erysipelotrichaceae',
-  'Aspergillaceae'
-)
+# taxonomy_list = c(
+#   'Chloroflexi',
+#   'Anaerolineae',
+#   'Barnesiellaceae',
+#   'Prolixibacteraceae',
+#   'Eggerthellaceae',
+#   'Rikenellaceae',
+#   'Erysipelotrichaceae',
+#   'Aspergillaceae'
+# )
 
 plot.boxplot.taxonomy(
   taxonomy_quantity,

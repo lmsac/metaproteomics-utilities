@@ -175,12 +175,12 @@ taxonomy_color = c(
   "Negativicutes" = "#cccc00"
 )
 
-taxonomy_color = c(
-  "Actinobacteria" = "#ff9933",
-  "Bacteroidetes" = "#009926",  
-  "Clostridia" = "#ff3366",
-  "Gammaproteobacteria" = "#0000ee"
-)
+# taxonomy_color = c(
+#   "Actinobacteria" = "#ff9933",
+#   "Bacteroidetes" = "#009926",  
+#   "Clostridia" = "#ff3366",
+#   "Gammaproteobacteria" = "#0000ee"
+# )
 
 
 taxonomy_pathway = lapply(names(taxonomy_color), function(taxonomy) {

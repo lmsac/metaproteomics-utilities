@@ -26,51 +26,30 @@ library(readr)
 
 level = 'protein'
 report_files = list(
-  'SpectroMine' = 'DDA/SpectroMine/protein_report.csv',
-  'PEAKS' = 'DDA/PEAKS/proteins.csv'
-)
-report_files = list(
-  'SpectroMine' = 'TMT/SpectroMine/protein_report.csv',
-  'PEAKS' = 'TMT/PEAKS/proteins.csv'
-)
-report_files = list(
-  'DDALib' = 'DIA/DDALib/protein_report.csv',
-  'directDIA' = 'DIA/directDIA/protein_report.csv'
-)
-report_files = list(
   'directDIA' = 'DIA/directDIA/protein_report.csv',
   'LFQ-DDA' = 'DDA/PEAKS/proteins.csv',
   'TMT' = 'TMT/PEAKS/proteins.csv'
 )
-report_files = list(
-  'All' = 'DIA/directDIA/protein_report.csv',
-  'Ribosomal' = 'DIA/directDIA_ribosomal/protein_report.csv'
-)
-report_files = list(
-  'directDIA' = 'protein_report.csv'
-)
+# report_files = list(
+#   'DDALib' = 'DIA/DDALib/protein_report.csv',
+#   'directDIA' = 'DIA/directDIA/protein_report.csv'
+# )
+# report_files = list(
+#   'All' = 'DIA/directDIA/protein_report.csv',
+#   'Ribosomal' = 'DIA/directDIA_ribosomal/protein_report.csv'
+# )
 
-level = 'peptide'
-report_files = list(
-  'SpectroMine' = 'DDA/SpectroMine/peptide_report.csv',
-  'PEAKS' = 'DDA/PEAKS/protein-peptides.csv'
-)
-report_files = list(
-  'SpectroMine' = 'TMT/SpectroMine/peptide_report.csv',
-  'PEAKS' = 'TMT/PEAKS/protein-peptides.csv'
-)
-report_files = list(
-  'DDALib' = 'DIA/DDALib/peptide_report.csv',
-  'directDIA' = 'DIA/directDIA/peptide_report.csv'
-)
-report_files = list(
-  'directDIA' = 'DIA/directDIA/peptide_report.csv',
-  'LFQ-DDA' = 'DDA/PEAKS/protein-peptides.csv',
-  'TMT' = 'TMT/PEAKS/protein-peptides.csv'
-)
-report_files = list(
-  'directDIA' = 'peptide_report.csv'
-)
+
+# level = 'peptide'
+# report_files = list(
+#   'directDIA' = 'DIA/directDIA/peptide_report.csv',
+#   'LFQ-DDA' = 'DDA/PEAKS/protein-peptides.csv',
+#   'TMT' = 'TMT/PEAKS/protein-peptides.csv'
+# )
+# report_files = list(
+#   'DDALib' = 'DIA/DDALib/peptide_report.csv',
+#   'directDIA' = 'DIA/directDIA/peptide_report.csv'
+# )
 
 
 reports = lapply(report_files, read_csv)
@@ -160,68 +139,55 @@ theoretical_fold_change = list(
 )
 
 
-theoretical_fold_change = list(
-  'S2/S1' = list(
-     "B. fragilis"      = 5/1,
-     "P. aeruginosa"    = 2/1,
-     "E. casseliflavus" = 5/2
-  ),
-  'S3/S1' = list(
-     "K. pneumoniae"    = 2/5,
-     "M. morganii"      = 2/5,
-     "C. butyricum"     = 5/1,
-     "E. faecalis"      = 5/1,
-     "E. asburiae"      = 2/5,
-     "C. freundii"      = 1/2,
-     "E. coli"          = 1/2
-  ),
-  'S3/S2' = list(
-    "L. acidophilus"   = 1/2,
-    "K. aerogenes"     = 5/2
-  )
-)
+# theoretical_fold_change = list(
+#   'S2/S1' = list(
+#      "B. fragilis"      = 5/1,
+#      "P. aeruginosa"    = 2/1,
+#      "E. casseliflavus" = 5/2
+#   ),
+#   'S3/S1' = list(
+#      "K. pneumoniae"    = 2/5,
+#      "M. morganii"      = 2/5,
+#      "C. butyricum"     = 5/1,
+#      "E. faecalis"      = 5/1,
+#      "E. asburiae"      = 2/5,
+#      "C. freundii"      = 1/2,
+#      "E. coli"          = 1/2
+#   ),
+#   'S3/S2' = list(
+#     "L. acidophilus"   = 1/2,
+#     "K. aerogenes"     = 5/2
+#   )
+# )
 
 
+# theoretical_fold_change = list(
+#   'S2/S1' = list(
+#     "P. aeruginosa"    = 1/2,
+#     "M. morganii"      = 5/1,
+#     "C. butyricum"     = 2/5,
+#     "E. faecalis"      = 1/5,
+#     "E. asburiae"      = 5/2,
+#     "L. acidophilus"   = 2/1
+#   ),
+#   'S3/S1' = list(
+#     "P. aeruginosa"    = 5/2,
+#     "M. morganii"      = 2/1,
+#     "C. butyricum"     = 1/5,
+#     "E. faecalis"      = 2/5,
+#     "E. asburiae"      = 1/2,
+#     "L. acidophilus"   = 5/1
+#   ),
+#   'S3/S2' = list(
+#     "P. aeruginosa"    = 5/1,
+#     "M. morganii"      = 2/5,
+#     "C. butyricum"     = 1/2,
+#     "E. faecalis"      = 2/1,
+#     "E. asburiae"      = 1/5,
+#     "L. acidophilus"   = 5/2
+#   )
+# )
 
-theoretical_fold_change = list(
-  'S2/S1' = list(
-    "P. aeruginosa"    = 1/2,
-    "M. morganii"      = 5/1,
-    "C. butyricum"     = 2/5,
-    "E. faecalis"      = 1/5,
-    "E. asburiae"      = 5/2,
-    "L. acidophilus"   = 2/1
-  ),
-  'S3/S1' = list(
-    "P. aeruginosa"    = 5/2,
-    "M. morganii"      = 2/1,
-    "C. butyricum"     = 1/5,
-    "E. faecalis"      = 2/5,
-    "E. asburiae"      = 1/2,
-    "L. acidophilus"   = 5/1
-  ),
-  'S3/S2' = list(
-    "P. aeruginosa"    = 5/1,
-    "M. morganii"      = 2/5,
-    "C. butyricum"     = 1/2,
-    "E. faecalis"      = 2/1,
-    "E. asburiae"      = 1/5,
-    "L. acidophilus"   = 5/2
-  )
-)
-
-theoretical_fold_change = list(
-  'S2/S1' = list(
-    "C. butyricum"     = 2/5,
-    "E. asburiae"      = 5/2
-  ),
-  'S3/S1' = list(
-    "P. aeruginosa"    = 5/2,
-    "M. morganii"      = 2/1,
-    "E. faecalis"      = 2/5,
-    "L. acidophilus"   = 5/1
-  )
-)
 
 
 theoretical_fold_change = lapply(names(theoretical_fold_change), function(group) {
@@ -232,8 +198,15 @@ theoretical_fold_change = lapply(names(theoretical_fold_change), function(group)
     stringsAsFactors = FALSE
   )
 })
+
+# theoretical_fold_change[[3]] = data.frame(
+#   group = 'S3/S2',
+#   organism = theoretical_fold_change[[1]]$organism,
+#   fc = theoretical_fold_change[[2]]$fc / theoretical_fold_change[[1]]$fc,
+#   stringsAsFactors = FALSE
+# )
   
-theoretical_fold_change = do.call(rbind, theoretical_fold_change)
+# theoretical_fold_change = do.call(rbind, theoretical_fold_change)
 
 
 fold_change = plot.fold.change(
