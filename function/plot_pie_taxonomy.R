@@ -3,10 +3,10 @@ library(ggplot2)
 
 plot.pie.taxonomy = function(protein_annotation,
                              level,
-                             parent_taxonomy = NULL,
+                             parent_taxonomy = NULL, topn = 5,
                              filename = 'pie_taxonomy.svg', 
                              width = 6, height = 6, unit = 'cm',
-                             hide.text = FALSE,
+                             hide_text = FALSE,
                              return_data = FALSE) {
   if (is.null(parent_taxonomy) || is.na(parent_taxonomy[1])) {
     eggNOG_OGs = protein_annotation$eggNOG_OGs
@@ -32,10 +32,10 @@ plot.pie.taxonomy = function(protein_annotation,
   ), decreasing = TRUE)
   taxonomy_count = c(taxonomy_count[names(taxonomy_count) != 'NA'], taxonomy_count['NA'])
   
-  if (length(taxonomy_count) > 5) {
+  if (length(taxonomy_count) > topn) {
     taxonomy_count = c(
-      taxonomy_count[1:4],
-      'Other' = sum(taxonomy_count[-(1:4)])
+      head(taxonomy_count, topn),
+      'Other' = sum(taxonomy_count[-(1:topn)])
     )
   }
   names(taxonomy_count)[names(taxonomy_count) == 'NA'] = 'Other'
@@ -76,7 +76,7 @@ plot.pie.taxonomy = function(protein_annotation,
       axis.ticks.x = element_blank(),
       axis.text.y = element_blank(),
       axis.text.x = element_blank(),
-      legend.position = if (hide.text) 'none' else 'right'
+      legend.position = if (hide_text) 'none' else 'right'
     )
   
   if (!is.null(filename)) {
@@ -111,19 +111,22 @@ differential_protein_annotation = read_csv('differential_protein_annotation.csv'
 
 taxonomy_count = plot.pie.taxonomy(
   differential_protein_annotation,
-  level = 3,
+  level = 3, topn = 3,
   filename = 'pie_taxonomy.svg',
-  # hide.text = TRUE,
+  # hide_text = TRUE,
   width = 6, height = 6, unit = 'cm',
   return_data = TRUE
 )
 
 
-plot.pie.taxonomy(
-  differential_protein_annotation,
-  level = 4,
-  parent_taxonomy = taxonomy_count$taxonomy[1],
-  filename = 'pie_taxonomy.svg',
-  # hide.text = TRUE,
-  width = 6, height = 6, unit = 'cm'
-)
+lapply(1:2, function(i) {
+  plot.pie.taxonomy(
+    differential_protein_annotation,
+    level = 4, topn = 4,
+    parent_taxonomy = taxonomy_count$taxonomy[i],
+    filename = paste0('pie_taxonomy_', taxonomy_count$taxonomy[i], '.svg'),
+    # hide_text = TRUE,
+    width = 6, height = 6, unit = 'cm'
+  )
+})
+

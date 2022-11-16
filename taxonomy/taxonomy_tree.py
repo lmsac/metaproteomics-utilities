@@ -122,7 +122,7 @@ def cut_tree(tree, depth):
             tree['name'] = ''
 
 
-def calculate_fc_pvalue(tree, group, equal_var=True):
+def calculate_fc_pvalue(tree, group, method = 'ttest', **test_args):
     index1 = group[group == 1].index
     index2 = group[group == 2].index
 
@@ -133,8 +133,17 @@ def calculate_fc_pvalue(tree, group, equal_var=True):
     mean2 = value2.mean()
     fc = np.divide(mean2, mean1)
 
-    ttest = stats.ttest_ind(value1, value2, equal_var=equal_var)
-    pvalue = ttest.pvalue
+    
+    if method == 'ttest':
+        test = stats.ttest_ind(value1, value2, **test_args)
+    elif method == 'mannwhitneyu':
+        test = stats.mannwhitneyu(
+            values[j], values[i],
+            **test_args
+        )
+    else:
+        raise ValueError('invalid method')
+    pvalue = test.pvalue
 
     tree['data'] = {
         'value1': value1.tolist(),
@@ -148,7 +157,7 @@ def calculate_fc_pvalue(tree, group, equal_var=True):
     children = tree.get('children', None)
     if children:
         for child in children:
-            calculate_fc_pvalue(child, group, equal_var=equal_var)
+            calculate_fc_pvalue(child, group, **test_args)
 
     return tree['data']
 
@@ -240,7 +249,7 @@ if __name__ == '__main__':
         help='the minimum number of peptides required for a taxon (default: %(default)s)'
     )
     parser.add_argument(
-        '--depth', type=int, default=5,
+        '--depth', type=int, default=7,
         help='the depth of taxonomy tree (default: %(default)s)'
     )
     parser.add_argument(
@@ -277,7 +286,7 @@ if __name__ == '__main__':
         map(int, group.split(',')),
         index=data.columns[len(level) + 1:]
     )
-    calculate_fc_pvalue(tree, group, equal_var=True)
+    calculate_fc_pvalue(tree, group)
 
     finalize_tree_for_output(tree)
     save_tree_json(tree, out_file, jsonp=jsonp)

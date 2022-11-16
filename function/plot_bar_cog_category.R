@@ -24,7 +24,9 @@ COG_categories = c(
   T = 'signal transduction mechanisms',
   U = 'intracellular trafficking, secretion, and vesicular transport',
   V = 'defense mechanisms',
+  W = 'extracellular structures',
   X = 'mobilome: prophages, transposons',
+  Y = 'nuclear structure',
   Z = 'cytoskeleton'
 )
 
@@ -32,7 +34,8 @@ COG_categories = c(
 plot.bar.cog_category = function(protein_annotation,
                              filename = 'bar_cog_category.svg', 
                              width = 8, height = 8, unit = 'cm',
-                             hide.text = FALSE,
+                             colors = c('#339dff', '#ff3355'),
+                             hide_text = FALSE,
                              return_data = FALSE) {
   data = do.call(rbind, lapply(list(
     list('Up', protein_annotation$log2fc > 0), 
@@ -70,7 +73,7 @@ plot.bar.cog_category = function(protein_annotation,
       ),
       color = 'black', vjust = 'center', size = 3
     ) +
-    scale_fill_manual(values = c('#339dff', '#ff3355')) +
+    scale_fill_manual(values = colors) +
     scale_x_discrete(
       name = 'COG category',
       position = 'top',
@@ -85,11 +88,11 @@ plot.bar.cog_category = function(protein_annotation,
       panel.background = element_blank(),
       panel.grid.major = element_blank(), 
       panel.grid.minor = element_blank(),
-      axis.title.x = if (hide.text) element_blank() else element_text(color = 'black'),
+      axis.title.x = if (hide_text) element_blank() else element_text(color = 'black'),
       axis.title.y = element_blank(),
       axis.ticks.y = element_blank(),
       axis.ticks.x = element_line(),
-      axis.text.y = if (hide.text) element_blank() else element_text(color = 'black'),
+      axis.text.y = if (hide_text) element_blank() else element_text(color = 'black'),
       axis.text.x = element_text(color = 'black'),
       legend.position = 'none'
     ) +
@@ -125,11 +128,19 @@ library(readr)
 emapper_annotations = read_delim(
   'emapper.annotations.tsv', 
   '\t', escape_double = FALSE, trim_ws = TRUE, 
-  skip = 4
+  comment = '##'
 )
 
 differential_protein = read_csv('differential_protein.csv')
 
+differential_protein$protein = sapply(strsplit(differential_protein$protein, ';'), head, 1)
+differential_protein$protein = sub('^(\\S+)\\s.*', '\\1', differential_protein$protein)
+
+differential_protein = subset(
+  differential_protein,
+  abs(log2(fc)) >= 1 &
+    adjusted.pvalue <= 0.01
+)
 
 differential_protein_annotation = merge(
   differential_protein, 
@@ -147,15 +158,7 @@ write.csv(
 plot.bar.cog_category(
   differential_protein_annotation,
   filename = 'bar_cog_category.svg', 
-  # hide.text = TRUE,
-  width = 8, height = 8, unit = 'cm'
+  # hide_text = TRUE,
+  width = 16, height = 8.5, unit = 'cm'
 )
-
-
-
-
-
-
-
-
 

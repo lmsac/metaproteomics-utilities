@@ -14,7 +14,7 @@ abundance based on metaproteome quantification results.
 See the publications for details.
 
 ## Publications
-1. Zhao, J., Yang, Y., Xu, H., Zheng, J., Chen, T., Yi, J., Zhao, D., Wu, E., Shen, C., Wang, B., Qin, Q., Xia, L., Qiao, L. Quantitative metaproteomics by data-independent acquisition reveals alteration of gut microbiota metabolism in cancer and neurodegenerative disease. Submited.
+1. Zhao, J., Yang, Y., Xu, H., Zheng, J., Shen, C., Chen, T., Wang, T., Wang, B., Yi, J., Zhao, D., Wu, E., Qin, Q., Xia, L., Qiao, L. Data-independent acquisition boosts quantitative metaproteomics for deep characterization of gut microbiota. Submited.
 2. Long, S., Yang, Y., Shen, C., Wang, Y., Deng, A., Qin, Q., Qiao, L. Metaproteomics characterizes human gut microbiome function in colorectal cancer. *npj Biofilms and Microbiomes* **6**, 14 (2021). https://doi.org/10.1038/s41522-020-0123-4
 
 ## Contacts

@@ -41,7 +41,7 @@ library(readr)
 differential_protein_annotation = read_csv('differential_protein_annotation.csv')
 
 
-taxonomy = 'Negativicutes'
+taxonomy = 'Bacteroidetes'
 
 kegg_colormap = get.kegg_colormap(differential_protein_annotation, taxonomy)
 

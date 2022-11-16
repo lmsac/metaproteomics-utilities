@@ -69,12 +69,12 @@ get_kegg_by_taxonomy = function(taxonomy) {
 
 
 taxonomy_list = c(
-  'Actinobacteria',
+  #'Actinobacteria',
   'Bacteroidetes',
   'Bacilli',
   'Clostridia',
-  'Negativicutes',
-  'Gammaproteobacteria'
+  'Negativicutes'#,
+  #'Gammaproteobacteria'
 )
 
 invisible(lapply(taxonomy_list, function(taxonomy) {
@@ -129,30 +129,46 @@ enrich_results = lapply(taxonomy_list, function(taxonomy) {
 names(enrich_results) = taxonomy_list
 
 
-plots = lapply(enrich_results, function(x) {
-  pl = dotplot(x)
-  pl = pl + theme(
-    panel.background = element_blank(), 
-    panel.border = element_blank(), 
-    legend.position = 'top', 
-    legend.title = element_blank(), 
-    axis.title = element_blank(), 
-    axis.line.x = element_line(color = 'black'), 
-    axis.ticks.y = element_blank()
-  )
+plots = local({
+  gene_ratio_range = range(DOSE::parse_ratio(unlist(lapply(enrich_results, function(x) x$GeneRatio))))
+  
+  lapply(enrich_results, function(x) {
+    pl = enrichplot::dotplot(x) + 
+      geom_text(
+        aes(
+          label = sprintf('list(italic(N)==%d,italic(p)==%.2G)', Count, p.adjust),
+          hjust = ifelse(GeneRatio > mean(gene_ratio_range), 1.2, -0.2)
+        ), 
+        color = 'black', size = 4, parse = TRUE
+      ) + 
+      xlab('Gene Ratio') +
+      coord_cartesian(xlim = gene_ratio_range) +
+      theme(
+        panel.background = element_blank(), 
+        panel.border = element_blank(), 
+        legend.position = 'none', 
+        legend.title = element_blank(), 
+        # axis.title = element_blank(), 
+        axis.line.x = element_line(color = 'black'), 
+        axis.ticks.y = element_blank()
+      )
+  })
 })
 plots = align_plots(plotlist = plots, align = "v")
 names(plots) = taxonomy_list
 
 
+
+
+
 invisible(lapply(names(plots), function(taxonomy) {
-  svg(
+  height = 2.5 + 6 * nrow(enrich_results[[taxonomy]]) / max(sapply(enrich_results, nrow))
+  ggsave(
     filename = paste0('kegg_enrich_', taxonomy, '.svg'), 
-    width = 8, height = 4, 
+    plot = plot_grid(plots[[taxonomy]]),
+    width = 18, height = height, units = 'cm',
     bg = 'transparent'
   )
-  plot_grid(plots[[taxonomy]])
-  dev.off()
 }))
 
 
@@ -166,25 +182,7 @@ invisible(lapply(names(enrich_results), function(taxonomy) {
 
 
 
-taxonomy_color = c(
-  "Actinobacteria" = "#ff9933",
-  "Bacteroidetes" = "#009926",
-  "Bacilli;Clostridia" = "#9933cc",
-  "Bacilli" = "#0000ee",
-  "Clostridia" = "#ff3366",
-  "Negativicutes" = "#cccc00"
-)
-
-# taxonomy_color = c(
-#   "Actinobacteria" = "#ff9933",
-#   "Bacteroidetes" = "#009926",  
-#   "Clostridia" = "#ff3366",
-#   "Gammaproteobacteria" = "#0000ee"
-# )
-
-
-taxonomy_pathway = lapply(names(taxonomy_color), function(taxonomy) {
-  data = read_csv(paste0('kegg_enrich_', taxonomy, '.csv'))
+taxonomy_pathway = lapply(names(enrich_results), function(taxonomy) {
   data = enrich_results[[taxonomy]]@result
   data = subset(data, p.adjust < 0.05 & Count >= 3)
   data$taxonomy = taxonomy
@@ -206,6 +204,25 @@ taxonomy_ko = aggregate(taxonomy ~ ko, taxonomy_ko, function(x) {
     paste0(x, collapse = ';')
   }
 })
+
+
+
+taxonomy_color = c(
+  "Bacteroidetes" = "#009926",
+  
+  "Bacilli" = "#0000ee",
+  "Clostridia" = "#ff3366",
+  "Bacilli;Clostridia" = "#9933cc",
+  
+  "Negativicutes" = "#cccc00"
+)
+
+# taxonomy_color = c(
+#   "Actinobacteria" = "#ff9933",
+#   "Bacteroidetes" = "#009926",  
+#   "Clostridia" = "#ff3366",
+#   "Gammaproteobacteria" = "#0000ee"
+# )
 
 taxonomy_ko$color = taxonomy_color[taxonomy_ko$taxonomy]
 taxonomy_ko$color[is.na(taxonomy_ko$color)] = "#000000"

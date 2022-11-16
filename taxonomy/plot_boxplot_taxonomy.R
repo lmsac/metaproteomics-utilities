@@ -4,7 +4,7 @@ library(ggplot2)
 plot.boxplot.taxonomy = function(taxonomy_quantity, taxonomy_list,
                                  filename = 'boxplot_taxonomy.svg',
                                  width = 14, height = 4, unit = 'cm',
-                                 hide.text = FALSE,
+                                 hide_text = FALSE,
                                  return_data = FALSE) {
   data = do.call(rbind, lapply(taxonomy_list, function(taxon) {
     row = taxonomy_quantity$name == taxon
@@ -30,7 +30,7 @@ plot.boxplot.taxonomy = function(taxonomy_quantity, taxonomy_list,
     facet_wrap(
       vars(taxon), nrow = 2, 
       scales = 'free',
-      labeller = if (hide.text) function(x) '' else  'label_value'
+      labeller = if (hide_text) function(x) '' else  'label_value'
     ) +
     theme(
       panel.background = element_blank(),
@@ -41,7 +41,7 @@ plot.boxplot.taxonomy = function(taxonomy_quantity, taxonomy_list,
       axis.title.x = element_blank(), 
       axis.text.x = element_blank(),
       axis.line.y = element_line(), 
-      axis.title.y = if (hide.text) element_blank() else element_text(color = 'black'),
+      axis.title.y = if (hide_text) element_blank() else element_text(color = 'black'),
       axis.ticks.y = element_line(),
       axis.text.y = element_text(color = 'black'),
       legend.position = 'none'
@@ -103,6 +103,6 @@ plot.boxplot.taxonomy(
   taxonomy_quantity,
   taxonomy_list,
   filename = 'boxplot_taxonomy.svg', 
-  # hide.text = TRUE,
+  # hide_text = TRUE,
   width = 14, height = 4, unit = 'cm'
 )

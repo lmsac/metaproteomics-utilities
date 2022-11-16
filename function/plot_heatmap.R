@@ -3,7 +3,7 @@ library(ggplot2)
 plot.heatmap = function(protein_report, protein_annotation,
                         filename = 'heatmap.svg', 
                         width = 12, height = 8, unit = 'cm',
-                        hide.text = FALSE,
+                        hide_text = FALSE,
                         return_data = FALSE) {
   data = data.frame(
     protein_annotation,
@@ -63,11 +63,11 @@ plot.heatmap = function(protein_report, protein_annotation,
       axis.ticks.x = element_blank(),
       axis.title.y = element_blank(),
       axis.ticks.y = element_blank(),
-      axis.text.y = if (hide.text) element_blank() else element_text(color = 'black'),
+      axis.text.y = if (hide_text) element_blank() else element_text(color = 'black'),
       legend.position = 'bottom',
       legend.key.size = unit(0.4, 'cm'), 
-      legend.title = if (hide.text) element_blank() else element_text(size = 7), 
-      legend.text = if (hide.text) element_blank() else element_text(size = 6)
+      legend.title = if (hide_text) element_blank() else element_text(size = 7), 
+      legend.text = if (hide_text) element_blank() else element_text(size = 6)
     )
   
   if (!is.null(filename)) {
@@ -162,6 +162,7 @@ library(readr)
 differential_protein_annotation = read_csv('differential_protein_annotation.csv')
 protein_report = read_csv('protein_report.csv')
 
+protein_report$PG.ProteinAccessions = sub('^(\\S+)\\s.*', '\\1', protein_report$PG.ProteinAccessions)
 
 cog_list = c(
   'COG0443',
@@ -176,7 +177,7 @@ cog_list = c(
 
 data_heatmap = plot.heatmap.cog(
   protein_report,
-  differential_proteins_annotation,
+  differential_protein_annotation,
   cog_list = cog_list, cog_category = 'O',
   filename = 'heatmap_cog_O_text.svg',
   width = 8, height = 8, unit = 'cm',
@@ -216,7 +217,7 @@ data_heatmap = plot.heatmap.kegg(
   ko_list = ko_list,
   filename = 'heatmap_kegg_fatty_acid.svg',
   width = 8, height = 8, unit = 'cm',
-  # hide.text = TRUE,
+  # hide_text = TRUE,
   return_data = TRUE
 )
 
@@ -230,7 +231,7 @@ data_heatmap = plot.heatmap.kegg(
   ko_list = NULL, pathway = 'ko00290',
   filename = 'heatmap_kegg_BCAA.svg',
   width = 8, height = 8, unit = 'cm',
-  # hide.text = TRUE,
+  # hide_text = TRUE,
   return_data = TRUE
 )
 
