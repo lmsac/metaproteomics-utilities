@@ -1,0 +1,140 @@
+library(ggplot2)
+
+
+plot.boxplot.taxonomy = function(taxonomy_quantity, taxonomy_list,
+                                 filename = 'boxplot_taxonomy.svg',
+                                 width = 14, height = 4, unit = 'cm',
+                                 colors = c('#ff3355', '#339dff', '#65c3ba'),
+                                 hide_text = FALSE,
+                                 return_data = FALSE) {
+  data = do.call(rbind, lapply(taxonomy_list, function(taxon) {
+    row = taxonomy_quantity$name == taxon
+    columns = grep('^value', colnames(taxonomy_quantity), value = TRUE)
+    
+    do.call(rbind, lapply(unique(sub('\\.[0-9]+$', '', columns)), function(group) {
+      columns1 = grep(group, columns, value = TRUE)
+      
+      data.frame(
+        taxon = taxon,
+        group = sub('^value', 'group', group),
+        sample = columns1,
+        quantity = as.numeric(taxonomy_quantity[row, columns1]),
+        stringsAsFactors = FALSE
+      )
+    }))
+  }))
+  
+  data$taxon = factor(data$taxon, levels = taxonomy_list)
+  
+  pl = ggplot(data, aes(x = group, y = quantity, fill = group)) + 
+    geom_boxplot(position = position_dodge(), alpha = 0.75) +
+    geom_jitter(position = position_jitter(width = 0.2), size = 1) +
+    scale_fill_manual(values = colors) +
+    scale_y_continuous(name = 'Relative Abundance (%)') + 
+    facet_wrap(
+      vars(taxon), 
+      scales = 'free',
+      labeller = if (hide_text) function(x) '' else  'label_value'
+    ) +
+    theme(
+      panel.background = element_blank(),
+      panel.grid.major = element_blank(), 
+      panel.grid.minor = element_blank(),
+      axis.line.x = element_blank(), 
+      axis.ticks.x = element_blank(), 
+      axis.title.x = element_blank(), 
+      axis.text.x = element_blank(),
+      axis.line.y = element_line(), 
+      axis.title.y = if (hide_text) element_blank() else element_text(color = 'black'),
+      axis.ticks.y = element_line(),
+      axis.text.y = element_text(color = 'black'),
+      legend.position = 'none'
+    )
+  
+  if (!is.null(filename)) {
+    ggsave(
+      filename = filename, 
+      pl, 
+      width = width, height = height, unit = unit,
+      bg = 'transparent'
+    )
+    
+    if (return_data) {
+      data
+    }
+  }
+  else {
+    if (return_data) {
+      list(plot = pl, data = data)
+    }
+    else {
+      pl
+    }
+  }
+}
+
+
+library(readr)
+
+taxonomy_quantity = read_csv('taxonomy_quantity.csv')
+
+taxonomy_list = c(
+  'Planctomycetes',
+  'Nocardiaceae',
+  'Pedaliaceae',
+  'Millerozyma'
+)
+
+# taxonomy_list = c(
+#   'Archaea',
+#   'Actinomycetaceae',
+#   'Corynebacteriaceae',
+#   'Micrococcaceae',
+#   'Lactobacillaceae',
+#   'Azospirillaceae',
+#   'Burkholderiaceae',
+#   'Enterobacteriaceae',
+#   'Didymellaceae',
+#   'Pleosporaceae',
+#   'Ascosphaeraceae',
+#   'Myxotrichaceae',
+#   'Hyaloscyphaceae',
+#   'Rutstroemiaceae',
+#   'Nectriaceae',
+#   'Xylonaceae',
+#   'Spizellomycetaceae',
+#   'Synchytriaceae',
+#   'Chlorarachniophyceae',
+#   'Pucciniales'
+# )
+
+# taxonomy_list = c(
+#   'Archaea',
+#   'Planctomycetia',
+#   'Microbacteriaceae',
+#   'Pseudonocardiaceae',
+#   'Staphylococcaceae',
+#   'Aerococcaceae',
+#   'Bradyrhizobiaceae',
+#   'Didymosphaeriaceae',
+#   'Pleosporaceae',
+#   'Arthrodermataceae',
+#   'Debaryomycetaceae',
+#   'Saccharomycetaceae',
+#   'Clavicipitaceae',
+#   'Microascaceae',
+#   'Xylonaceae',
+#   'Cunninghamellaceae',
+#   'Mucoraceae',
+#   'Syncephalastraceae',
+#   'Siphoviridae',
+#   'Byssochlamys'
+# )
+
+plot.boxplot.taxonomy(
+  taxonomy_quantity,
+  taxonomy_list,
+  filename = 'boxplot_taxonomy.svg', 
+  # hide_text = TRUE,
+  width = 14, height = 4, unit = 'cm'
+)

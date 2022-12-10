@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,height=device-height">
+  <title>Figure</title>
+  <style>::-webkit-scrollbar{display:none;}html,body{overflow:hidden;height:100%;margin:0;}</style>
+</head>
+<body>
+<button id='btn-save-image'>Save Image</button>
+<button id='btn-save-data'>Data</button>
+<button id='btn-save-label'>Labels</button>
+<button id='btn-save-legend'>Legend</button>
+<div id="mountNode"></div>
+<div id="legend" style="position: absolute; top: 0; right: 0;"></div>
+<script>/*Fixing iframe window.innerHeight 0 issue in Safari*/document.body.clientHeight;</script>
+<script src="https://gw.alipayobjects.com/os/antv/pkg/_antv.g2-3.2.7/dist/g2.min.js"></script>
+<script src="https://gw.alipayobjects.com/os/antv/pkg/_antv.data-set-0.8.9/dist/data-set.min.js"></script>
+<script src="https://gw.alipayobjects.com/os/antv/assets/lib/jquery-3.2.1.min.js"></script>
+
+<script>
+function getData(data) {
+  window.data = data;
+}
+</script>
+<script src="./taxonomy_tree.json?callback=getData"></script>
+
+<script>
+$(document).ready(function() {
+  const levels = [
+    'superkingdom', 'phylum', 'class', 
+    'order', 'family', 'genus', 'species'
+  ];
+  
+  const useAdjustedPValue = 0;
+
+  const renderer = 'svg'; // 'canvas';
+  
+  const height = Math.min(window.innerHeight, window.innerWidth);
+  const padding = [60, 60, 60, 60];
+  
+  const leavesDepth = 5;
+  const eps = 1e-6;
+  const fontSize = 8;
+  const fontColor = 'black';
+  const useLabel = true;
+   
+  const pvalueThreshold = 0.01;
+  const fcThresholds = [-1, 1];
+  const nodeColorValues = ['darkblue', 'black', 'darkred'];
+  
+  const nodeSizeBreaks = [0.0001, 0.001, 0.01];
+  const nodeSizeValues = [5, 4, 3, 1];
+
+  function inverseSrgbCompanding(color)
+  {
+    return color.map(function(c) {
+      var x = c / 255;
+      if (x > 0.04045) {
+        x = Math.pow((x + 0.055) / 1.055, 2.4);
+      } else {
+        x = x / 12.92;
+      };
+      return x * 255;
+    });     
+  }
+
+  function srgbCompanding(color)
+  {
+    return color.map(function(c) {
+      var x = c / 255;
+      if (x > 0.0031308) {
+        x = 1.055 * Math.pow(x, 1 / 2.4) - 0.055;
+      } else {
+        x = x * 12.92;
+      };
+      return x * 255;
+    });  
+  }
+  
+  function getLog2fcMax(nodes) {
+    return Math.ceil(Math.max.apply(null, nodes.map(function(node) {      
+      return Math.max(
+        Math.abs(node.log2fc2vs1), 
+        Math.abs(node.log2fc3vs1), 
+        Math.abs(node.log2fc3vs2)
+      );
+    })));
+  }
+  
+  function positionColorFunc(log2fcMax) {  
+    var color0 = inverseSrgbCompanding([240, 240, 240]);
+    var color1 = inverseSrgbCompanding([192, 0, 0]);
+    var color2 = inverseSrgbCompanding([0, 0, 192]);
+    var color3 = inverseSrgbCompanding([0, 192, 0]);
+
+    function getPosition(log2fc2vs1, log2fc3vs1) {
+      var x = log2fc2vs1 / log2fcMax;
+      var y = (log2fc3vs1 / log2fcMax * 2 + 1 - x) / Math.sqrt(3);
+      return [x, y];
+    }
+    
+    function whichRegion(x, y) {
+      var d12 = Math.abs(y);
+      var d13 = Math.abs((x + 1) * Math.sqrt(3) - y) / 2;
+      var d23 = Math.abs((x - 1) * Math.sqrt(3) + y) / 2;
+      if (d12 <= Math.min(d13, d23)) {
+        return 0;
+      } else if (d13 <= Math.min(d12, d23)) {
+        return 1;
+      } else {
+        return 2;
+      }
+    }
+
+    function blendColor(color1, color2, color3, a, b) {
+      var c = 1 - a - b;
+      var colorMix = [
+        color1[0] * a + color2[0] * b + color3[0] * c,
+        color1[1] * a + color2[1] * b + color3[1] * c,
+        color1[2] * a + color2[2] * b + color3[2] * c
+      ];
+      colorMix = srgbCompanding(colorMix);
+      return colorMix;
+    }
+
+    function getPositionColor(log2fc2vs1, log2fc3vs1) {
+      var pos = getPosition(log2fc2vs1, log2fc3vs1);
+      var region = whichRegion(pos[0], pos[1]);
+      var center = [0, 1 / Math.sqrt(3)];
+      
+      var vertexA, vertexB, colorA, colorB;
+      if (region == 0) {
+        vertexA = [-1, 0];
+        vertexB = [1, 0];
+        colorA = color1;
+        colorB = color2;
+      } else if (region == 1) {
+        vertexA = [-1, 0];
+        vertexB = [0, Math.sqrt(3)];
+        colorA = color1;
+        colorB = color3;
+      } else {
+        vertexA = [1, 0];
+        vertexB = [0, Math.sqrt(3)];
+        colorA = color2;
+        colorB = color3;
+      }
+      
+      var a = (
+        - (pos[0] - vertexB[0]) * (center[1] - vertexB[1]) 
+        + (pos[1] - vertexB[1]) * (center[0] - vertexB[0])
+      ) / (
+        - (vertexA[0] - vertexB[0]) * (center[1] - vertexB[1])
+        + (vertexA[1] - vertexB[1]) * (center[0] - vertexB[0])
+      );
+      var b = (
+        - (pos[0] - center[0]) * (vertexA[1] - center[1]) 
+        + (pos[1] - center[1]) * (vertexA[0] - center[0])
+      ) / (
+        - (vertexB[0] - center[0]) * (vertexA[1] - center[1])
+        + (vertexB[1] - center[1]) * (vertexA[0] - center[0])
+      );
+
+      var colorMix = blendColor(colorA, colorB, color0, a, b);
+      
+      return [pos, colorMix];
+    }
+
+    return getPositionColor;
+  }
+
+  function drawLegend(container, log2fcMax, grids=11, ticks=5) {
+    var container = document.getElementById(container);
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', 240);
+    svg.setAttribute('height', 240);
+    svg.setAttribute('viewBox', '-1.5 -0.5 3 3');
+    container.appendChild(svg);
+
+    function drawColorLegand(log2fcMax, grids) {
+      var gridSize = (log2fcMax * 2) / grids;
+      var cutoff1 = [];
+      var cutoff2 = [];
+      var inverse = [];
+      for (var j = 0; j < grids; j++) {
+        for (var i = 0; i < 2 * (grids - j) - 1; i++) {
+          cutoff1.push(-log2fcMax + gridSize * (j + i + 1) / 2);
+          cutoff2.push(-log2fcMax + gridSize * (j * 2 + Math.ceil(i / 2) + 1) / 2);
+          inverse.push(i % 2);
+        }
+      }
+
+      for (var i in cutoff1) {
+        var t = getPositionColor(cutoff1[i], cutoff2[i]);
+        var x = t[0][0];
+        var y = t[0][1];
+        var color = t[1];
+
+        var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        if (inverse[i]) {
+          path.setAttribute(
+            'd', 
+            'M' + x + ',' + (y - 2 / grids / Math.sqrt(3)) +             
+              ' L' + (x - 1 / grids) + ',' + (y + 1 / grids / Math.sqrt(3)) + 
+              ' H' + (x + 1 / grids) +
+              ' Z'
+          );
+        } else {
+          path.setAttribute(
+            'd', 
+            'M' + (x - 1 / grids) + ',' + (y - 1 / grids / Math.sqrt(3)) + 
+              ' H' + (x + 1 / grids) +
+              ' L' + x + ',' + (y + 2 / grids / Math.sqrt(3)) + 
+              ' Z'
+          );
+        }
+        path.setAttribute(
+          'POS', 
+          x + ',' + y
+        );
+        path.setAttribute(
+          'VALUE', 
+          cutoff1[i] + ',' + cutoff2[i]
+        );
+        path.style.fill = 'rgb(' + color.join(',') + ')';
+        path.style.opacity = 0.75;
+        svg.appendChild(path);      
+      }
+    }
+
+    function drawAxes(log2fcMax, ticks) {
+      var interval = log2fcMax * 2 / (ticks - 1);
+    
+      for (var axis in [0, 1, 2]) {
+        for (var i = 0; i < ticks; i++) {
+          var label = -log2fcMax + i * interval;
+          var x, y, x2, y2;
+          var dx, dy, textAnchor, dominantBaseline;
+          if (axis == 0) {
+            x = -1 + i * 2 / (ticks - 1);
+            y = 0;
+            x2 = x;
+            y2 = y - 0.08;
+            dx = 0;
+            dy = -0.12;
+            textAnchor = 'middle';
+            dominantBaseline = 'auto';
+          } else if (axis == 1) {
+            x = -1 + i / (ticks - 1);
+            y = i * Math.sqrt(3) / (ticks - 1);
+            x2 = x - 0.04 * Math.sqrt(3);
+            y2 = y + 0.04;
+            dx = -0.06 * Math.sqrt(3);
+            dy = 0.06;
+            textAnchor = 'end';
+            dominantBaseline = 'middle';
+          } else {
+            x = 1 - i / (ticks - 1);
+            y = i * Math.sqrt(3) / (ticks - 1);
+            x2 = x + 0.04 * Math.sqrt(3);
+            y2 = y + 0.04;
+            dx = 0.06 * Math.sqrt(3);
+            dy = 0.06;
+            textAnchor = 'start';
+            dominantBaseline = 'middle';
+          }
+
+          var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', x);
+          line.setAttribute('x2', x2);
+          line.setAttribute('y1', y);
+          line.setAttribute('y2', y2);
+          line.style.stroke = 'black';
+          line.style.strokeWidth = 0.01;
+          svg.appendChild(line);
+
+          var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          text.setAttribute('x', x);
+          text.setAttribute('y', y);
+          text.setAttribute('text-anchor', textAnchor);
+          text.setAttribute('dominant-baseline', dominantBaseline);
+          text.setAttribute('dx', dx);
+          text.setAttribute('dy', dy);
+          text.setAttribute('font-size', 0.2);
+          text.textContent = label;
+          svg.appendChild(text);
+        }
+      }
+    }
+
+    drawColorLegand(log2fcMax, grids);
+    drawAxes(log2fcMax, ticks);
+  }
+   
+  function stepValue(value, breaks, labels) {
+    for (var i = 0; i < breaks.length; i++) {
+      if (breaks[i] > value) {
+        return labels[i]
+      }
+    }
+    return labels[breaks.length]
+  }
+  
+  var dv = new DataSet.View().source(data, {
+    type: 'hierarchy'
+  });
+  dv.transform({
+    type: 'hierarchy.tree'
+  });
+
+  var links = dv.getAllLinks().map(function (link) {
+    return {
+      x: [link.source.x, link.target.x],
+      y: [link.source.y, link.target.y],
+      source: link.source,
+      target: link.target
+    };
+  });
+
+  var nodes = dv.getAllNodes();
+
+  function calculatePolygonX(nodes) {
+    var leavesCount = nodes.filter(function (node) { 
+      return node.depth === leavesDepth; 
+    }).length;
+
+    function calculateXRange(node) {
+      if (node.children && node.children.length) {
+        var childrenRange = node.children.map(calculateXRange);
+        node.xRange = [
+          Math.min.apply(null, childrenRange.map(x => x[0])),
+          Math.max.apply(null, childrenRange.map(x => x[1]))
+        ]
+      }
+      else {
+        node.xRange = [
+          node.x - 0.4 / leavesCount,
+          node.x + 0.4 / leavesCount
+        ]
+      }
+      return node.xRange;
+    }
+    calculateXRange(nodes[0]);
+  }
+
+  calculatePolygonX(nodes);
+
+  function calculatePolygonY(nodes) {
+    var polygonY = [];
+    nodes.forEach(function (node) {
+      polygonY[node.depth] = node.y;
+    })
+    polygonY = polygonY.map(function (y, i, items) {
+      var y1 = y, y2 = y;
+      if (i === 0) {
+        y1 = 0;
+      }
+      else {
+        y1 = (y + items[i - 1]) / 2
+      }
+      if (i === items.length - 1) {
+        y2 = y * 2 - y1;
+      }
+      else {
+        y2 = (y + items[i + 1]) / 2
+      }
+      if (y2 > 1) {
+        y2 = 1
+      };
+      return [y1, y2];
+    });
+
+    nodes.forEach(function (node) {
+      node.yRange = [
+        polygonY[node.depth][0], 
+        y2 = polygonY[node.depth][1]
+      ];
+    });
+  }
+
+  calculatePolygonY(nodes);
+
+  nodes = nodes.map(function (node) {
+    var group1 = node.data.data.mean1;
+    var group2 = node.data.data.mean2;
+    var group3 = node.data.data.mean3;
+    var mean = (group1 + group2 + group3) / 3;
+    var log2fc2vs1 = Math.log2((group2 + eps) / (group1 + eps));
+    var log2fc3vs1 = Math.log2((group3 + eps) / (group1 + eps));
+    var log2fc3vs2 = Math.log2((group3 + eps) / (group2 + eps));
+
+    if (useAdjustedPValue) {
+      var pvalue2vs1 = node.data.data.adjustedPValue2vs1;
+      var pvalue3vs1 = node.data.data.adjustedPValue3vs1;
+      var pvalue3vs2 = node.data.data.adjustedPValue3vs2;
+      var pvalueKW = node.data.data.adjustedPValueKW;
+    } else {
+      var pvalue2vs1 = node.data.data.pvalue2vs1;
+      var pvalue3vs1 = node.data.data.pvalue3vs1;
+      var pvalue3vs2 = node.data.data.pvalue3vs2;
+      var pvalueKW = node.data.data.pvalueKW;
+    }
+    
+    return {
+      name: typeof node.data.name === 'string' ? node.data.name : JSON.stringify(node.data.name),
+      group1: group1, group2: group2, group3: group3,
+      mean: mean,
+      log2fc2vs1: log2fc2vs1, log2fc3vs1: log2fc3vs1, log2fc3vs2: log2fc3vs2,
+      pvalue2vs1: pvalue2vs1, pvalue3vs1: pvalue3vs1, pvalue3vs2: pvalue3vs2, pvalueKW: pvalueKW,
+      depth: node.depth,
+      centerX: node.x,
+      centerY: node.y,
+      pointX: [node.xRange[0], node.xRange[0], node.xRange[1], node.xRange[1]],
+      pointY: [node.yRange[0], node.yRange[1], node.yRange[1], node.yRange[0]],
+      label: 
+        node.data.name !== '' && node.data.name !== 'NA' &&
+        node.data.name !== '-' &&
+        (!node.children ||
+          !node.children.length ||
+          !node.children.filter(function (c) { return c.data.name !== '' && c.data.name !== 'NA'; }).length)
+    };
+  });
+  
+  if (useLabel) {
+    function labelNodes(nodes) {
+      var labels = {};
+      var labelCount = 0;
+      nodes.map(function (node) {
+        if (node.label) {
+          labelCount += 1;
+          node.label = labelCount;
+          labels[node.label] = node.name;
+        }
+      })
+      return labels;
+    }
+  
+    var labels = labelNodes(nodes);
+  }
+
+  const log2fcMax = getLog2fcMax(nodes);
+  const getPositionColor = positionColorFunc(log2fcMax);
+  
+  var chart = new G2.Chart({
+    container: 'mountNode',
+    forceFit: true,
+    height: height,
+    padding: padding,
+    renderer: renderer
+  });
+  chart.coord('polar');
+  chart.axis(false); 
+  
+  chart.legend(false);
+
+  //chart.legend('pvalue', false);
+  //chart.legend('log2fc', false);
+    
+  /*
+  chart.legend('log2fc', {
+    slidable: false,
+    position: 'bottom-center',
+    offsetY: 60,
+    height: 8,
+    width: 140
+  });
+  */
+  
+  
+  chart.tooltip({
+    showTitle: false
+  });
+  
+  var polygonView = chart.view();
+  polygonView.source(nodes.filter(function (node) {
+    return node.name !== '' && node.name !== 'NA';
+  }), {
+    name: { alias: 'Taxon' },
+    group1: { alias: 'Group 1' },
+    group2: { alias: 'Group 2' },
+    group3: { alias: 'Group 3' },
+    log2fc2vs1: { alias: 'log2 FC(2/1)' },
+    log2fc3vs1: { alias: 'log2 FC(3/1)' },
+    log2fc3vs2: { alias: 'log2 FC(3/2)' }  
+  });
+  polygonView.polygon()
+    .position('pointX*pointY')
+    .opacity(0.75)
+    .color('log2fc2vs1*log2fc3vs1', function(log2fc2vs1, log2fc3vs1) {
+      return 'rgb(' + getPositionColor(log2fc2vs1, log2fc3vs1)[1].join(',') + ')';
+    })
+    .active(false)
+    .style({
+      stroke: '#FFF',
+      lineWidth: 1
+    })
+    .tooltip('name*group1*group2*group3*log2fc2vs1*log2fc3vs1*log2fc3vs2');
+
+  var edgeView = chart.view();
+  edgeView.source(links.filter(function (link) { 
+    return link.target.data.name !== '' && link.target.data.name !== 'NA'; 
+  }));
+  edgeView.edge()
+    .position('x*y')
+    .shape('smooth')
+    .opacity(0.5)
+    .color('black')
+    .tooltip(false);
+  
+  var nodeView = chart.view();
+  nodeView.source(nodes.filter(function (node) {
+    return node.name !== '' && node.name !== 'NA';
+  }), {
+    name: { alias: 'Taxon' },
+    group1: { alias: 'Group 1' },
+    group2: { alias: 'Group 2' },
+    group3: { alias: 'Group 3' },
+    pvalueKW: { alias: 'p-value(KW)' },  
+    pvalue2vs1: { alias: 'p-value(2/1)' },
+    pvalue3vs1: { alias: 'p-value(3/1)' },
+    pvalue3vs2: { alias: 'p-value(3/2)' }   
+  });
+  nodeView.point()
+    .position('centerX*centerY')
+    .color('black')    
+    .opacity(0.5)    
+    .size('pvalue2vs1*pvalue3vs1*pvalue3vs2', function(pvalue2vs1, pvalue3vs1, pvalue3vs2) { 
+      return stepValue(
+        Math.min(pvalue2vs1, pvalue3vs1, pvalue3vs2), 
+        nodeSizeBreaks, nodeSizeValues
+      )
+    })    
+    .label('name*label', function (name, label) {
+      if (!label) {
+        return null;
+      }
+      else if (useLabel) {
+        return label;
+      }
+      else {
+        return name;
+      }
+    }, {
+      offset: 25,
+      labelEmit: true,
+      textStyle: function textStyle(text, item) {
+        var textAlign = item.textAlign;
+        if (item.point.hasChildren) {
+          textAlign = textAlign === 'left' ? 'right' : 'left';
+        }
+        return {
+          fill: fontColor,
+          fontSize: fontSize,
+          textAlign: textAlign,
+          textBaseline: 'middle'
+        };
+      }
+    })
+    .tooltip('name*group1*group2*group3*pvalueKW*pvalue2vs1*pvalue3vs1*pvalue3vs2');
+  
+  chart.render();
+  
+  if (renderer == 'svg') {
+    var center = $('#canvas_1 > g:nth-child(4) > g:nth-child(3) > path')
+        .attr('d').split(' ').slice(1, 3).map(parseFloat)
+    
+    function rotateText(){
+      var centerX = center[0];
+      var centerY = center[1];
+      
+      function rotation(x, y, centerX, centerY) {
+        var angle = Math.atan2(y - centerY, x - centerX) * 180 / (Math.PI);
+        if (x < centerX) {
+          angle += 180;
+        }
+        return angle;
+      }
+
+      $('#canvas_1 g text').each(function (i, t) {
+        var x = parseFloat($(t).attr('x'));
+        var y = parseFloat($(t).attr('y'));
+        var angle = rotation(x, y, centerX, centerY);
+        $(t).attr('transform', 'rotate(' + angle + ',' + x + ',' + y + ')');
+      });
+    }
+  
+    setTimeout(rotateText, 1000);
+  }
+
+  drawLegend('legend', log2fcMax);
+
+  $('#btn-save-image').click(function() {
+      chart.downloadImage();
+  });
+  
+  function downloadText(text, filename) {
+    var element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+    element.setAttribute('download', filename);
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  }
+  
+  $('#btn-save-data').click(function() {
+      var s = [[
+          'label', 'level', 'name',
+          'group1', 'group2', 'group3',
+          'fc2vs1', useAdjustedPValue ? 'adjustedPValue2vs1' : 'pvalue2vs1',
+          'fc3vs1', useAdjustedPValue ? 'adjustedPValue3vs1' : 'pvalue3vs1',
+          'fc3vs2', useAdjustedPValue ? 'adjustedPValue3vs2' : 'pvalue3vs2',
+          useAdjustedPValue ? 'adjustedPValueKW' : 'pvalueKW'
+      ].join(',')].concat(nodes.filter(function(node) {
+        return node.name !== '' && node.name !== 'NA';
+      }).map(function(node) {
+        return [
+          node.label,
+          node.depth == 0 ? 'root': levels[node.depth - 1],
+          node.name,
+          node.group1, node.group2, node.group3,
+          node.group2 / node.group1, node.pvalue2vs1,
+          node.group3 / node.group1, node.pvalue3vs1,
+          node.group3 / node.group2, node.pvalue3vs2,
+          node.pvalueKW
+        ].join(',');
+      })).join('\r\n');
+      
+      downloadText(s, 'data.csv');
+  });
+  
+  if (useLabel) {    
+    $('#btn-save-label').show();
+    $('#btn-save-label').click(function() {
+      var s = Object.keys(labels).map(function(key) {
+          return key + ',' + labels[key];
+      }).join('\r\n');
+      
+      downloadText(s, 'label.csv');
+    });
+  }
+  else {
+    $('#btn-save-label').hide();
+  }
+
+  $('#btn-save-legend').click(function() {
+      downloadText(
+        document.getElementById('legend').innerHTML.replace(
+          '<svg',
+          '<svg xmlns="http://www.w3.org/2000/svg" version="1.1"'
+        ),
+        'legend.svg'
+      );
+  });
+  
+  });
+</script>
+</body>
+
+</html>
